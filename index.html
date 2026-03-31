@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TMS - Pro Profit Tracker</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        
+        :root { 
+            --navy: #020617; 
+            --gold: #fbbf24; 
+            --teal: #2dd4bf; 
+            --rose: #fb7185; 
+            --blue: #38bdf8; 
+            --glass-bg: rgba(15, 23, 42, 0.7);
+        }
+
+        body { background: var(--navy); color: #f1f5f9; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+        
+        .glass { 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .active-tab-sales { background: linear-gradient(135deg, #0d9488, #2dd4bf) !important; color: var(--navy) !important; font-weight: 800; }
+        .active-tab-purchases { background: linear-gradient(135deg, #0284c7, #38bdf8) !important; color: var(--navy) !important; font-weight: 800; }
+        .active-tab-expenses { background: linear-gradient(135deg, #e11d48, #fb7185) !important; color: var(--navy) !important; font-weight: 800; }
+        
+        .transaction-card { transition: 0.3s; border: 1px solid rgba(255,255,255,0.03); cursor: pointer; }
+        .transaction-card:hover { background: rgba(255,255,255,0.05); transform: translateY(-2px); }
+        
+        #splash-screen { position: fixed; inset: 0; background: var(--navy); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        input, select { background: rgba(30, 41, 59, 0.8) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; }
+        input:focus { border-color: var(--blue) !important; outline: none; box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+        
+        .profit-positive { color: var(--teal); text-shadow: 0 0 15px rgba(45, 212, 191, 0.3); }
+        .profit-negative { color: var(--rose); text-shadow: 0 0 15px rgba(251, 113, 133, 0.3); }
+
+        .fab { position: fixed; bottom: 30px; right: 25px; width: 65px; height: 65px; background: linear-gradient(135deg, var(--blue), #0284c7); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 10px 25px rgba(56, 189, 248, 0.4); z-index: 90; animation: pulse-blue 2s infinite; }
+        
+        @keyframes pulse-blue {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(56, 189, 248, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+        }
+
+        .filter-btn { padding: 6px 12px; border-radius: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; transition: 0.3s; border: 1px solid rgba(255,255,255,0.1); }
+        .filter-btn.active { background: var(--blue); color: var(--navy); border-color: var(--blue); }
+
+        .app-logo { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="splash-screen">
+        <div class="relative">
+            <div class="absolute -inset-4 bg-blue-500/20 blur-xl rounded-full animate-pulse"></div>
+            <div class="w-24 h-24 bg-white rounded-3xl flex items-center justify-center relative overflow-hidden">
+                <img src="ICON.png" alt="Logo" class="app-logo">
+            </div>
+        </div>
+        <h1 class="mt-6 text-3xl font-black text-blue-400 tracking-[0.3em]">TMS <span class="text-white">DESIGN</span></h1>
+        <p class="text-slate-500 text-[10px] font-bold mt-2 tracking-widest uppercase">Smart Enterprise Solutions</p>
+    </div>
+
+    <div id="app" class="hidden min-h-screen pb-40">
+        <header class="p-6 flex justify-between items-center sticky top-0 z-40 bg-navy/90 backdrop-blur-lg border-b border-white/5">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 overflow-hidden">
+                    <img src="ICON.png" alt="Logo" class="app-logo">
+                </div>
+                <div>
+                    <h2 class="font-black text-xl leading-none">TMS <span class="text-blue-400">V3.5</span></h2>
+                    <span id="lang-edition" class="text-[8px] text-slate-500 font-bold tracking-tighter uppercase">Professional Edition</span>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="toggleLanguage()" class="glass px-3 py-2 rounded-xl text-white border-white/20 font-black text-[10px] flex items-center gap-1">
+                    <i class="fas fa-globe"></i> <span id="btn-lang">ENG</span>
+                </button>
+                <button onclick="openInvoiceModal()" class="glass px-4 py-2 rounded-xl text-teal-400 border-teal-400/30 font-bold text-xs flex items-center gap-2">
+                    <i class="fas fa-file-invoice-dollar"></i> <span id="btn-invoice">INVOICE</span>
+                </button>
+                <button onclick="generateProfessionalPDF()" class="glass px-4 py-2 rounded-xl text-blue-400 border-blue-400/30">
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="max-w-md mx-auto px-6 mt-6 space-y-6">
+            <section class="glass p-8 rounded-[2.5rem] relative overflow-hidden border-t border-white/10">
+                <div class="absolute top-0 right-0 p-6 opacity-10">
+                    <i class="fas fa-wallet text-6xl"></i>
+                </div>
+                <p class="text-[10px] text-slate-400 uppercase font-black tracking-widest flex items-center gap-2">
+                    <i class="fas fa-scale-balanced text-blue-400"></i> <span id="label-net">Net Profit / Surplus</span>
+                </p>
+                <h2 id="net-balance" class="text-4xl font-black tracking-tighter mt-2 mb-6">TSh 0</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-4 rounded-3xl bg-teal-500/10 border border-teal-500/20">
+                        <p class="text-[9px] text-teal-400 uppercase font-black flex items-center gap-1">
+                            <i class="fas fa-arrow-trend-up"></i> <span id="label-revenue">Revenue</span>
+                        </p>
+                        <p id="total-sales" class="text-sm font-bold mt-1 text-teal-50">0</p>
+                    </div>
+                    <div class="p-4 rounded-3xl bg-rose-500/10 border border-rose-500/20">
+                        <p class="text-[9px] text-rose-400 uppercase font-black flex items-center gap-1">
+                            <i class="fas fa-arrow-trend-down"></i> <span id="label-expenses">Expenses</span>
+                        </p>
+                        <p id="total-expenses" class="text-sm font-bold mt-1 text-rose-50">0</p>
+                    </div>
+                </div>
+            </section>
+
+            <nav class="flex p-1.5 glass rounded-2xl gap-1">
+                <button onclick="switchTab('sales')" id="tab-sales" class="flex-1 py-3.5 text-[9px] font-black uppercase transition-all rounded-xl flex flex-col items-center gap-1">
+                    <i class="fas fa-shop text-sm mb-0.5"></i> <span id="nav-sales">Mauzo</span>
+                </button>
+                <button onclick="switchTab('purchases')" id="tab-purchases" class="flex-1 py-3.5 text-[9px] font-black uppercase transition-all rounded-xl flex flex-col items-center gap-1">
+                    <i class="fas fa-cart-flatbed text-sm mb-0.5"></i> <span id="nav-purchases">Manunuzi</span>
+                </button>
+                <button onclick="switchTab('expenses')" id="tab-expenses" class="flex-1 py-3.5 text-[9px] font-black uppercase transition-all rounded-xl flex flex-col items-center gap-1">
+                    <i class="fas fa-receipt text-sm mb-0.5"></i> <span id="nav-expenses">Matumizi</span>
+                </button>
+            </nav>
+
+            <div class="flex justify-center gap-2 py-2">
+                <button onclick="setDateFilter('all')" id="filter-all" class="filter-btn active">All</button>
+                <button onclick="setDateFilter('today')" id="filter-today" class="filter-btn">Today</button>
+                <button onclick="setDateFilter('week')" id="filter-week" class="filter-btn">Week</button>
+                <button onclick="setDateFilter('month')" id="filter-month" class="filter-btn">Month</button>
+            </div>
+
+            <div id="content-area" class="space-y-4"></div>
+            
+            <div id="pagination-controls" class="hidden">
+                <button onclick="showAllTransactions()" class="w-full py-4 glass rounded-2xl text-blue-400 text-xs font-black uppercase tracking-widest border-blue-400/20">
+                    View All Transactions <i class="fas fa-chevron-down ml-2"></i>
+                </button>
+            </div>
+        </main>
+
+        <button onclick="openForm()" class="fab">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
+    <div id="form-modal" class="fixed inset-0 bg-navy/95 backdrop-blur-2xl hidden z-[100] p-6 flex items-center justify-center">
+        <div class="w-full max-w-sm space-y-6">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-pen-to-square text-2xl text-blue-400"></i>
+                </div>
+                <h3 id="modal-title" class="text-2xl font-black text-white uppercase tracking-tighter">New Entry</h3>
+            </div>
+            <div class="space-y-4">
+                <select id="item-type" class="w-full p-5 rounded-3xl outline-none">
+                    <option value="sale" id="opt-sale">MAUZO (Income)</option>
+                    <option value="purchase" id="opt-purchase">MANUNUZI (Asset)</option>
+                    <option value="expense" id="opt-expense">MATUMIZI (Expense)</option>
+                </select>
+                <input type="text" id="item-desc" placeholder="Maelezo..." class="w-full p-5 rounded-3xl">
+                <div class="flex gap-3">
+                    <input type="number" id="item-qty" placeholder="Qty" class="w-1/3 p-5 rounded-3xl text-center">
+                    <input type="number" id="item-amount" placeholder="Bei" class="w-2/3 p-5 rounded-3xl">
+                </div>
+                <button onclick="saveTransaction()" class="w-full bg-blue-500 text-white py-5 rounded-3xl font-black uppercase shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2">
+                    <i class="fas fa-cloud-arrow-up"></i> <span id="btn-save">Hifadhi</span>
+                </button>
+                <button onclick="closeModal('form-modal')" class="w-full text-slate-500 text-[10px] font-bold uppercase" id="btn-cancel">Ghairi</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="invoice-modal" class="fixed inset-0 bg-navy/98 backdrop-blur-2xl hidden z-[100] overflow-y-auto p-4">
+        <div class="max-w-md mx-auto pt-10 pb-20">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-black text-white uppercase flex items-center gap-3">
+                    <i class="fas fa-file-invoice text-teal-400"></i> <span id="inv-modal-title">Invoice Generator</span>
+                </h3>
+                <button onclick="closeModal('invoice-modal')" class="text-slate-400"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div id="invoice-items-container" class="space-y-4 mb-6"></div>
+            <button onclick="addInvoiceItemRow()" class="w-full py-4 border-2 border-dashed border-blue-500/30 rounded-3xl text-blue-400 font-bold text-sm mb-6 flex items-center justify-center gap-2">
+                <i class="fas fa-circle-plus"></i> <span id="btn-add-item">Ongeza Bidhaa Nyingine</span>
+            </button>
+            <div class="glass p-6 rounded-3xl space-y-4">
+                <div class="flex justify-between font-black">
+                    <span class="text-slate-400" id="label-grand-total">JUMLA KUU:</span>
+                    <span id="invoice-grand-total" class="text-xl text-blue-400">TSh 0</span>
+                </div>
+                <button onclick="printMultiItemInvoice()" class="w-full bg-teal-500 text-navy py-5 rounded-3xl font-black uppercase flex items-center justify-center gap-2">
+                    <i class="fas fa-print"></i> <span id="btn-print">Print Invoice Sasa</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let transactions = JSON.parse(localStorage.getItem('tms_pro_v3')) || [];
+        let currentTab = 'sales';
+        let currentLang = 'sw';
+        let dateFilter = 'all';
+        let showLimit = 5; 
+
+        const translations = {
+            en: {
+                langBtn: "SW", edition: "Design Solution", invoice: "INVOICE",
+                netProfit: "Net Profit / Surplus", revenue: "Revenue", expenses: "Expenses",
+                mauzo: "Sales", manunuzi: "Purchases", matumizi: "Expenses",
+                newEntry: "New Entry", save: "Save", cancel: "Cancel",
+                descPlaceholder: "Description...", pricePlaceholder: "Price", qtyPlaceholder: "Qty",
+                invGen: "Invoice Generator", addItem: "Add Another Item", grandTotal: "GRAND TOTAL:",
+                printNow: "Print Invoice Now", noRecord: "No records found...", deleteConfirm: "Delete this record?",
+                invTitle: "OFFICIAL SALES INVOICE", thanks: "Thank you for your business!",
+                reportTitle: "TMS DESIGN REPORT", genOn: "Generated on",
+                table: ["Date", "Description", "Type", "Amount (TSh)"],
+                totalRev: "TOTAL REVENUE:", totalExp: "TOTAL EXPENSES:", netSurp: "NET SURPLUS / DEFICIT:",
+                optSale: "SALES (Income)", optPurch: "PURCHASES (Asset)", optExp: "EXPENSES (Expense)"
+            },
+            sw: {
+                langBtn: "ENG", edition: "Njia ya Design", invoice: "INVOICE",
+                netProfit: "Faida / Salio la Jumla", revenue: "Mapato", expenses: "Matumizi",
+                mauzo: "Mauzo", manunuzi: "Manunuzi", matumizi: "Matumizi",
+                newEntry: "Rekodi Mpya", save: "Hifadhi", cancel: "Ghairi",
+                descPlaceholder: "Maelezo...", pricePlaceholder: "Bei", qtyPlaceholder: "Kiasi",
+                invGen: "Kutengeneza Risiti", addItem: "Ongeza Bidhaa Nyingine", grandTotal: "JUMLA KUU:",
+                printNow: "Print Invoice Sasa", noRecord: "Hakuna rekodi hapa...", deleteConfirm: "Futa rekodi hii?",
+                invTitle: "INVOICE RASMI YA MAUZO", thanks: "Asante kwa kufanya biashara nasi!",
+                reportTitle: "RIPOTI YA TMS DESIGN", genOn: "Imetolewa tarehe",
+                table: ["Tarehe", "Maelezo", "Aina", "Kiasi (TSh)"],
+                totalRev: "MAPATO YA JUMLA:", totalExp: "MATUMIZI YA JUMLA:", netSurp: "FAIDA / HASARA:",
+                optSale: "MAUZO (Mapato)", optPurch: "MANUNUZI (Mali)", optExp: "MATUMIZI (Gharama)"
+            }
+        };
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'sw' ? 'en' : 'sw';
+            updateUI();
+            render();
+        }
+
+        function updateUI() {
+            const t = translations[currentLang];
+            document.getElementById('btn-lang').innerText = t.langBtn;
+            document.getElementById('lang-edition').innerText = t.edition;
+            document.getElementById('btn-invoice').innerText = t.invoice;
+            document.getElementById('label-net').innerText = t.netProfit;
+            document.getElementById('label-revenue').innerText = t.revenue;
+            document.getElementById('label-expenses').innerText = t.expenses;
+            document.getElementById('nav-sales').innerText = t.mauzo;
+            document.getElementById('nav-purchases').innerText = t.manunuzi;
+            document.getElementById('nav-expenses').innerText = t.matumizi;
+            document.getElementById('modal-title').innerText = t.newEntry;
+            document.getElementById('btn-save').innerText = t.save;
+            document.getElementById('btn-cancel').innerText = t.cancel;
+            document.getElementById('item-desc').placeholder = t.descPlaceholder;
+            document.getElementById('item-amount').placeholder = t.pricePlaceholder;
+            document.getElementById('item-qty').placeholder = t.qtyPlaceholder;
+            document.getElementById('inv-modal-title').innerText = t.invGen;
+            document.getElementById('btn-add-item').innerText = t.addItem;
+            document.getElementById('label-grand-total').innerText = t.grandTotal;
+            document.getElementById('btn-print').innerText = t.printNow;
+            document.getElementById('opt-sale').innerText = t.optSale;
+            document.getElementById('opt-purchase').innerText = t.optPurch;
+            document.getElementById('opt-expense').innerText = t.optExp;
+        }
+
+        window.onload = () => {
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.display = 'none';
+                document.getElementById('app').classList.remove('hidden');
+                updateUI();
+                render();
+                switchTab('sales'); 
+            }, 1000);
+        };
+
+        function setDateFilter(filter) {
+            dateFilter = filter;
+            showLimit = 5; 
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`filter-${filter}`).classList.add('active');
+            render();
+        }
+
+        function filterByDate(list) {
+            const now = new Date();
+            if (dateFilter === 'all') return list;
+            return list.filter(item => {
+                const itemDate = new Date(item.date);
+                if (dateFilter === 'today') return itemDate.toDateString() === now.toDateString();
+                if (dateFilter === 'week') {
+                    const weekAgo = new Date(); weekAgo.setDate(now.getDate() - 7);
+                    return itemDate >= weekAgo;
+                }
+                if (dateFilter === 'month') return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+                return true;
+            });
+        }
+
+        function openForm() { document.getElementById('form-modal').classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            showLimit = 5; 
+            ['sales', 'purchases', 'expenses'].forEach(t => document.getElementById(`tab-${t}`).className = 'flex-1 py-3.5 text-[9px] font-black uppercase transition-all rounded-xl flex flex-col items-center gap-1');
+            document.getElementById(`tab-${tab}`).classList.add(`active-tab-${tab}`);
+            render();
+        }
+
+        function showAllTransactions() {
+            showLimit = Infinity;
+            render();
+        }
+
+        function render() {
+            const area = document.getElementById('content-area');
+            const pagination = document.getElementById('pagination-controls');
+            const t = translations[currentLang];
+            
+            let filteredList = transactions.filter(tr => tr.type === currentTab.slice(0,-1) || tr.type === currentTab);
+            filteredList = filterByDate(filteredList).reverse();
+            
+            const totalCount = filteredList.length;
+            const displayedList = filteredList.slice(0, showLimit);
+
+            area.innerHTML = totalCount ? '' : `<div class="text-center py-20 text-slate-600 italic text-xs flex flex-col gap-3"><i class="fas fa-folder-open text-3xl opacity-20"></i> ${t.noRecord}</div>`;
+            
+            displayedList.forEach(tr => {
+                let color = tr.type === 'sale' ? 'border-teal-500' : (tr.type === 'purchase' ? 'border-blue-400' : 'border-rose-500');
+                area.innerHTML += `
+                    <div class="transaction-card p-5 rounded-3xl glass flex gap-4 items-center border-l-4 ${color}">
+                        <div class="flex-1">
+                            <p class="text-[8px] font-black text-slate-500 uppercase">${new Date(tr.date).toLocaleDateString()}</p>
+                            <h4 class="text-sm font-bold text-white">${tr.desc}</h4>
+                            <p class="text-[9px] text-slate-400">${tr.qty} × TSh ${tr.price.toLocaleString()}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-black text-white">TSh ${tr.amount.toLocaleString()}</p>
+                            <button onclick="deleteRecord(${tr.id})" class="text-[10px] text-rose-500/30 hover:text-rose-500 mt-1 p-2"><i class="fas fa-trash-can"></i></button>
+                        </div>
+                    </div>`;
+            });
+
+            if (totalCount > 5 && showLimit !== Infinity) {
+                pagination.classList.remove('hidden');
+            } else {
+                pagination.classList.add('hidden');
+            }
+
+            updateStats();
+        }
+
+        function saveTransaction() {
+            const type = document.getElementById('item-type').value;
+            const desc = document.getElementById('item-desc').value;
+            const qty = parseInt(document.getElementById('item-qty').value) || 1;
+            const price = parseInt(document.getElementById('item-amount').value);
+            if(desc && price) {
+                transactions.push({ 
+                    id: Date.now(), type, desc, qty, price, 
+                    amount: qty * price, date: new Date().toISOString()
+                });
+                localStorage.setItem('tms_pro_v3', JSON.stringify(transactions));
+                render(); closeModal('form-modal');
+                document.getElementById('item-desc').value = ''; 
+                document.getElementById('item-amount').value = '';
+                document.getElementById('item-qty').value = '';
+            }
+        }
+
+        function deleteRecord(id) {
+            const t = translations[currentLang];
+            if(confirm(t.deleteConfirm)) {
+                transactions = transactions.filter(tr => tr.id !== id);
+                localStorage.setItem('tms_pro_v3', JSON.stringify(transactions));
+                render();
+            }
+        }
+
+        function updateStats() {
+            let sales = 0, expenses = 0;
+            const statsList = filterByDate(transactions);
+            statsList.forEach(tr => {
+                if(tr.type === 'sale') sales += tr.amount;
+                else expenses += tr.amount;
+            });
+            document.getElementById('total-sales').innerText = sales.toLocaleString();
+            document.getElementById('total-expenses').innerText = expenses.toLocaleString();
+            const net = sales - expenses;
+            const netEl = document.getElementById('net-balance');
+            netEl.innerText = `TSh ${net.toLocaleString()}`;
+            netEl.className = `text-4xl font-black tracking-tighter mt-2 mb-6 ${net >= 0 ? 'profit-positive' : 'profit-negative'}`;
+        }
+
+        function openInvoiceModal() {
+            document.getElementById('invoice-items-container').innerHTML = '';
+            addInvoiceItemRow();
+            document.getElementById('invoice-modal').classList.remove('hidden');
+            calculateInvoiceTotal();
+        }
+
+        function addInvoiceItemRow() {
+            const container = document.getElementById('invoice-items-container');
+            const rowId = Date.now();
+            const t = translations[currentLang];
+            const html = `
+                <div id="row-${rowId}" class="glass p-5 rounded-3xl relative">
+                    <button onclick="removeInvoiceRow(${rowId})" class="absolute -top-2 -right-2 bg-rose-500 text-white w-6 h-6 rounded-full text-[10px]"><i class="fas fa-times"></i></button>
+                    <input type="text" placeholder="${t.descPlaceholder}" class="invoice-desc w-full p-3 mb-3 rounded-xl text-sm">
+                    <div class="flex gap-2">
+                        <input type="number" oninput="calculateInvoiceTotal()" placeholder="${t.qtyPlaceholder}" class="invoice-qty w-1/3 p-3 rounded-xl text-center text-sm" value="">
+                        <input type="number" oninput="calculateInvoiceTotal()" placeholder="${t.pricePlaceholder}" class="invoice-price w-2/3 p-3 rounded-xl text-sm">
+                    </div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        function removeInvoiceRow(id) {
+            document.getElementById(`row-${id}`).remove();
+            calculateInvoiceTotal();
+        }
+
+        function calculateInvoiceTotal() {
+            let total = 0;
+            const qtys = document.querySelectorAll('.invoice-qty');
+            const prices = document.querySelectorAll('.invoice-price');
+            prices.forEach((p, i) => {
+                const q = qtys[i].value || 0;
+                const pr = p.value || 0;
+                total += (q * pr);
+            });
+            document.getElementById('invoice-grand-total').innerText = `TSh ${total.toLocaleString()}`;
+            return total;
+        }
+
+        function generateProfessionalPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const t = translations[currentLang];
+            const filteredForPDF = filterByDate(transactions);
+
+            doc.setFillColor(30, 41, 59);
+            doc.rect(0, 0, 210, 45, 'F');
+            doc.setTextColor(56, 189, 248);
+            doc.setFontSize(24);
+            doc.setFont("helvetica", "bold");
+            doc.text(t.reportTitle, 105, 20, { align: "center" });
+            
+            doc.setFontSize(10);
+            doc.setTextColor(255, 255, 255);
+            doc.text(`${t.genOn}: ${new Date().toLocaleString()}`, 105, 30, { align: "center" });
+
+            doc.autoTable({
+                startY: 55,
+                head: [t.table],
+                body: filteredForPDF.map(tr => [new Date(tr.date).toLocaleDateString(), tr.desc, tr.type.toUpperCase(), tr.amount.toLocaleString()]),
+                theme: 'grid',
+                headStyles: { fillColor: [56, 189, 248], textColor: [2, 6, 23] },
+                alternateRowStyles: { fillColor: [240, 249, 255] }
+            });
+
+            const finalY = doc.lastAutoTable.finalY + 15;
+            let sales = 0, expenses = 0;
+            filteredForPDF.forEach(tr => {
+                if(tr.type === 'sale') sales += tr.amount;
+                else expenses += tr.amount;
+            });
+
+            doc.setTextColor(0);
+            doc.setFontSize(11);
+            doc.text(`${t.totalRev} TSh ${sales.toLocaleString()}`, 15, finalY);
+            doc.text(`${t.totalExp} TSh ${expenses.toLocaleString()}`, 15, finalY + 8);
+            
+            doc.setFillColor(56, 189, 248);
+            doc.rect(15, finalY + 12, 180, 10, 'F');
+            doc.setTextColor(255);
+            doc.text(`${t.netSurp} TSh ${(sales - expenses).toLocaleString()}`, 105, finalY + 19, { align: "center" });
+
+            doc.save(`Report_${currentLang}_${Date.now()}.pdf`);
+        }
+
+        function printMultiItemInvoice() {
+            const descs = document.querySelectorAll('.invoice-desc');
+            const qtys = document.querySelectorAll('.invoice-qty');
+            const prices = document.querySelectorAll('.invoice-price');
+            const items = [];
+            descs.forEach((d, i) => {
+                if(d.value && prices[i].value) {
+                    items.push({ desc: d.value, qty: qtys[i].value || 1, price: parseInt(prices[i].value), total: (qtys[i].value || 1) * prices[i].value });
+                }
+            });
+            if(items.length === 0) return;
+            const t = translations[currentLang];
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: [80, 180] });
+            doc.setFillColor(30, 41, 59); 
+            doc.rect(0, 0, 80, 25, 'F');
+            doc.setTextColor(56, 189, 248); doc.setFontSize(14); doc.text("TMS DESIGN", 40, 12, { align: "center" });
+            doc.setTextColor(255); doc.setFontSize(8); doc.text(t.invTitle, 40, 18, { align: "center" });
+            doc.setTextColor(0);
+            doc.text(`Date: ${new Date().toLocaleDateString()}`, 5, 35);
+            doc.line(5, 37, 75, 37);
+            let y = 45; let grand = 0;
+            items.forEach(it => {
+                doc.setFont("helvetica", "bold"); doc.text(it.desc, 5, y);
+                doc.setFont("helvetica", "normal"); doc.text(`${it.qty} x ${it.price.toLocaleString()} = ${it.total.toLocaleString()}`, 5, y+4);
+                grand += it.total; y += 12;
+            });
+            doc.line(5, y, 75, y);
+            doc.setFontSize(10); doc.setFont("helvetica", "bold");
+            doc.text(`${t.grandTotal} TSh ${grand.toLocaleString()}`, 5, y + 8);
+            doc.setFontSize(8); doc.text(t.thanks, 40, y + 18, { align: "center" });
+            doc.save(`Invoice_${Date.now()}.pdf`);
+            closeModal('invoice-modal');
+        }
+    </script>
+</body>
+</html>
